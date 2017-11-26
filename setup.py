@@ -1,27 +1,56 @@
+import setuptools
 import sys
+import os
 
-from distutils.core import setup
-from distutils.extension import Extension
-from Cython.Distutils import build_ext
+from numpy.distutils.core import setup
+from numpy.distutils.misc_util import Configuration
+from numpy.distutils.system_info import default_include_dirs, default_lib_dirs
 
-if sys.platform == 'win32':
-    libraries = ["flint", "arb", "mpir", "mpfr", "pthreads"]
-else:
-    libraries = ["flint", "arb"]
+from Cython.Build import cythonize
 
-ext_modules = [Extension("flint", ["src/pyflint.pyx"], libraries=libraries)]
 
-for e in ext_modules:
-    e.cython_directives = {"embedsignature": True}
+def configuration(parent_package='', top_path=None):
+    """Configure all packages that need to be built."""
+    config = Configuration('', parent_package, top_path)
+
+    if sys.platform == 'win32':
+        libraries = ["flint", "arb", "mpir", "mpfr", "pthreads"]
+    else:
+        libraries = ["flint", "arb"]
+
+    # Collect all Cython sources
+    files = os.listdir('src')
+    sources = [
+        os.path.join('src', file) for file in files
+        if file.lower().endswith('.pyx')
+    ]
+
+    sources = [os.path.join('src', 'pyflint.pyx')]
+
+    include_path = default_include_dirs + ['src']
+    sources = cythonize(sources, include_path=include_path)
+
+    # FLINT
+    config.add_extension(
+        'flint',
+        libraries=libraries,
+        sources=sources,
+        include_dirs=include_path,
+        library_dirs=default_lib_dirs)
+
+    return config
+
 
 setup(
     name='python-flint',
-    cmdclass={'build_ext': build_ext},
-    ext_modules=ext_modules,
     description='bindings for FLINT',
-    version='0.1.2',
     url='https://github.com/python-flint/python-flint',
     author='Fredrik Johansson',
     author_email='fredrik.johansson@gmail.com',
     license='BSD',
-    classifiers=['Topic :: Scientific/Engineering :: Mathematics'])
+    platforms='OS Independent',
+    packages=setuptools.find_packages(),
+    setup_requires=['setuptools_scm'],
+    use_scm_version=True,
+    classifiers=['Topic :: Scientific/Engineering :: Mathematics'],
+    configuration=configuration)
